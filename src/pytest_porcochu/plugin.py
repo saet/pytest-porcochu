@@ -1,32 +1,4 @@
-# pytest-porcochu
-
-Like `pytest-pikachu` but it's a pikachuified pig.
-
-`pytest-porcochu` prints ascii art of Surprised Porco when all tests pass.
-
-## Installation
-
-```
-$ pip install pytest-porcochu
-```
-
-## Usage
-
-Pass the `--porcochu` option to `pytest` as a command line flag or configuration
-file option to get these stunning effects.
-
-```
-$ pytest --porcochu
-============================= test session starts ==============================
-platform linux -- Python 3.9.6, pytest-6.2.4, py-1.10.0, pluggy-0.13.1
-rootdir: /home/.../pytest-porcochu, configfile: tox.ini, testpaths: tests
-plugins: porcochu-0.1.0
-collected 4 items
-
-tests/test_plugin.py ....                                                [100%]
-
-============================== 4 passed in 0.11s ===============================
-
+ascii_art = u"""
 %%%%@%%%%%%%%%@%%%%%%%#########%%%#%%######################%@%%##*+===---=-::::
 %%%%@%%%@%%%%%@%%%%########################################%@%###*+==-::-=-.:::
 @@%@@%%%@@%%%%@@%%%######%##########%################*###**#@%*=--==--::--:::-:
@@ -55,20 +27,41 @@ tests/test_plugin.py ....                                                [100%]
 #++++==++**%@@%%%%@@@@@=--::::-+*##********==-:::::--==--#@%#**++**************
 ===+++****+==-------:---=--::::-***+******+=---::::=+++++==+==========+********
 ++++****+++++====++=++====-:::::+*+++=++++=-----:-+++==+==-----=-------====----
+"""
 
-```
 
-## Prior art
+def pytest_sessionfinish(session, exitstatus):
+    """Attach the exit status to the session config so we can read it later.
 
-I wrote this `pytest` plugin after seeing [this Reddit thread][1]. I used the
-answer in [this Stack Overflow question][2] on how to pass information between
-different `pytest` hooks.
+    We need this in order to tell whether the test run passed or not.
+    """
+    setattr(session.config, "exitstatus", exitstatus)
 
-## License
 
-Distributed under the terms of the MIT license, `pytest-porcochu` is free and
-open source software.
+def pytest_unconfigure(config):
+    """Show the surprised porcochu if enabled when all tests pass."""
+    # Print nothing if the plugin is not enabled
+    if not config.option.porcochu:
+        return
 
-[1]:
-  https://www.reddit.com/r/ProgrammerHumor/comments/a381ur/the_correct_reaction_to_unit_tests_passing/
-[2]: https://stackoverflow.com/a/53640991
+    # Print nothing if the pytest_sessionfinish hook was not called
+    if not hasattr(config, "exitstatus"):
+        return
+
+    # Print nothing if the tests failed
+    if getattr(config, "exitstatus") != 0:
+        return
+
+    tw = config.get_terminal_writer()
+    tw.write(ascii_art, green=True)
+
+
+def pytest_addoption(parser):
+    """Add a CLI flag to enable showing surprise."""
+    group = parser.getgroup("porcochu")
+    group.addoption(
+        "--porcochu",
+        action="store_true",
+        default=False,
+        help="Add a surprised Pikachu to successful test result log.",
+    )
